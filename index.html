@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI English Tutor</title>
+    <script src="tailwind.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .lesson-container {
+            transition: all 0.3s ease;
+        }
+        .shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .typing {
+            border-right: 2px solid;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            from, to { border-color: transparent }
+            50% { border-color: #3b82f6; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-language text-3xl"></i>
+                <h1 class="text-2xl font-bold">AI English Tutor</h1>
+            </div>
+            <div id="userLevel" class="bg-indigo-700 px-4 py-2 rounded-full font-medium flex items-center space-x-2">
+                <span>Уровень: Начинающий</span>
+                <i class="fas fa-user-graduate"></i>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Sidebar -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- User Profile -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <div class="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
+                            <i class="fas fa-user text-indigo-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg" id="username">Гость</h3>
+                            <p class="text-gray-500">День изучения: <span id="studyDay">1</span></p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>Прогресс</span>
+                                <span id="progressPercent">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Выучено слов</span>
+                            <span id="wordsLearned">0</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Пройдено уроков</span>
+                            <span id="lessonsCompleted">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Level Selector -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-bold text-lg mb-4">Ваш уровень</h3>
+                    <div class="space-y-2">
+                        <button data-level="beginner" class="level-btn w-full text-left px-4 py-2 rounded-lg bg-indigo-100 text-indigo-800 font-medium flex justify-between items-center">
+                            <span>Начинающий</span>
+                            <i class="fas fa-check-circle hidden"></i>
+                        </button>
+                        <button data-level="intermediate" class="level-btn w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 font-medium flex justify-between items-center">
+                            <span>Средний</span>
+                            <i class="fas fa-check-circle hidden"></i>
+                        </button>
+                        <button data-level="advanced" class="level-btn w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 font-medium flex justify-between items-center">
+                            <span>Продвинутый</span>
+                            <i class="fas fa-check-circle hidden"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Topics of Interest -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-bold text-lg mb-4">Темы для изучения</h3>
+                    <div class="flex flex-wrap gap-2" id="topicsContainer">
+                        <button class="topic-btn px-3 py-1 bg-gray-200 hover:bg-indigo-100 rounded-full text-sm">Путешествия</button>
+                        <button class="topic-btn px-3 py-1 bg-gray-200 hover:bg-indigo-100 rounded-full text-sm">Бизнес</button>
+                        <button class="topic-btn px-3 py-1 bg-gray-200 hover:bg-indigo-100 rounded-full text-sm">Технологии</button>
+                        <button class="topic-btn px-3 py-1 bg-gray-200 hover:bg-indigo-100 rounded-full text-sm">Культура</button>
+                        <button class="topic-btn px-3 py-1 bg-gray-200 hover:bg-indigo-100 rounded-full text-sm">Спорт</button>
+                    </div>
+                    <div class="mt-4 relative">
+                        <input type="text" id="newTopic" placeholder="Добавить свою тему" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button id="addTopicBtn" class="absolute right-2 top-2 text-indigo-600 hover:text-indigo-800">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Lesson Generator -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-robot text-indigo-600 mr-2"></i>
+                        Генератор занятий
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="lessonType">Тип занятия</label>
+                            <select id="lessonType" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="grammar">Грамматика</option>
+                                <option value="vocabulary">Словарный запас</option>
+                                <option value="conversation">Разговорная практика</option>
+                                <option value="listening">Аудирование</option>
+                                <option value="writing">Письмо</option>
+                                <option value="custom">Произвольная тема</option>
+                            </select>
+                        </div>
+                        <div id="customTopicContainer" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="customTopic">Введите тему</label>
+                            <input type="text" id="customTopic" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Например: Present Perfect">
+                        </div>
+                        <button id="generateLessonBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2">
+                            <i class="fas fa-magic"></i>
+                            <span>Создать индивидуальное занятие</span>
+                        </button>
+                        <p class="text-gray-500 text-sm">Наша ИИ система создаст персонализированный урок на основе вашего уровня и выбранных тем.</p>
+                    </div>
+                </div>
+
+                <!-- Current Lesson -->
+                <div id="currentLessonContainer" class="hidden bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold" id="lessonTitle">Текущее занятие</h2>
+                        <div class="flex space-x-2">
+                            <button id="saveLessonBtn" class="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm flex items-center space-x-1">
+                                <i class="fas fa-save"></i>
+                                <span>Сохранить</span>
+                            </button>
+                            <button id="newLessonBtn" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-lg text-sm flex items-center space-x-1">
+                                <i class="fas fa-redo"></i>
+                                <span>Новый урок</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="lesson-container mb-6">
+                        <div id="lessonContent" class="prose max-w-none"></div>
+                    </div>
+                    
+                    <!-- Exercises -->
+                    <div id="exercisesContainer" class="hidden">
+                        <h3 class="font-bold text-lg mb-4 flex items-center">
+                            <i class="fas fa-dumbbell text-indigo-600 mr-2"></i>
+                            Практика
+                        </h3>
+                        <div id="exercisesContent"></div>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loadingContainer" class="hidden bg-white p-6 rounded-xl shadow-md text-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 inline-block mb-4"></div>
+                    <p class="text-lg font-medium">ИИ создает ваш уникальный урок...</p>
+                    <p id="loadingMessage" class="text-gray-500 mt-2">Подбираем материалы по вашему уровню и интересам</p>
+                </div>
+
+                <!-- Previous Lessons -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-history text-indigo-600 mr-2"></i>
+                        История занятий
+                    </h2>
+                    <div id="previousLessons" class="space-y-3">
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-book-open text-4xl mb-2"></i>
+                            <p>Здесь будут появляться ваши пройденные уроки</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // API Configuration
+        const API_KEY = 'sk-9cd87d52258141b0bcd697a19d4a0c98';
+        const API_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+        // State Management
+        let appState = {
+            userLevel: 'beginner',
+            selectedTopics: [],
+            userName: 'Гость',
+            progress: 0,
+            wordsLearned: 0,
+            lessonsCompleted: 0,
+            studyDay: 1
+        };
+
+        // DOM Elements
+        const elements = {
+            userLevel: document.getElementById('userLevel'),
+            levelBtns: document.querySelectorAll('.level-btn'),
+            username: document.getElementById('username'),
+            studyDay: document.getElementById('studyDay'),
+            progressPercent: document.getElementById('progressPercent'),
+            progressBar: document.getElementById('progressBar'),
+            wordsLearned: document.getElementById('wordsLearned'),
+            lessonsCompleted: document.getElementById('lessonsCompleted'),
+            topicsContainer: document.getElementById('topicsContainer'),
+            newTopic: document.getElementById('newTopic'),
+            addTopicBtn: document.getElementById('addTopicBtn'),
+            lessonType: document.getElementById('lessonType'),
+            customTopicContainer: document.getElementById('customTopicContainer'),
+            customTopic: document.getElementById('customTopic'),
+            generateLessonBtn: document.getElementById('generateLessonBtn'),
+            currentLessonContainer: document.getElementById('currentLessonContainer'),
+            lessonTitle: document.getElementById('lessonTitle'),
+            lessonContent: document.getElementById('lessonContent'),
+            exercisesContainer: document.getElementById('exercisesContainer'),
+            exercisesContent: document.getElementById('exercisesContent'),
+            loadingContainer: document.getElementById('loadingContainer'),
+            loadingMessage: document.getElementById('loadingMessage'),
+            previousLessons: document.getElementById('previousLessons'),
+            saveLessonBtn: document.getElementById('saveLessonBtn'),
+            newLessonBtn: document.getElementById('newLessonBtn')
+        };
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        function initApp() {
+            // Load user data from localStorage if available
+            loadUserData();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Update UI with current state
+            updateUI();
+        }
+
+        function loadUserData() {
+            const savedData = localStorage.getItem('aiEnglishTutorData');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    appState = {...appState, ...data};
+                    
+                    // Load previous lessons
+                    if (data.previousLessons) {
+                        renderPreviousLessons(data.previousLessons);
+                    }
+                } catch (e) {
+                    console.error('Error loading saved data:', e);
+                }
+            }
+        }
+
+        function saveUserData() {
+            const data = {
+                ...appState,
+                previousLessons: JSON.parse(localStorage.getItem('aiEnglishTutorLessons')) || []
+            };
+            localStorage.setItem('aiEnglishTutorData', JSON.stringify(data));
+        }
+
+        function setupEventListeners() {
+            // Level selection
+            elements.levelBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const level = btn.dataset.level;
+                    appState.userLevel = level;
+                    
+                    // Update UI
+                    elements.levelBtns.forEach(b => {
+                        b.classList.remove('bg-indigo-100', 'text-indigo-800');
+                        b.querySelector('i').classList.add('hidden');
+                    });
+                    
+                    btn.classList.add('bg-indigo-100', 'text-indigo-800');
+                    btn.querySelector('i').classList.remove('hidden');
+                    
+                    elements.userLevel.innerHTML = `Уровень: ${getLevelName(level)} <i class="fas fa-user-graduate"></i>`;
+                    
+                    saveUserData();
+                });
+            });
+            
+            // Topic management
+            elements.addTopicBtn.addEventListener('click', addNewTopic);
+            elements.newTopic.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addNewTopic();
+            });
+            
+            // Topic selection
+            elements.topicsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('topic-btn')) {
+                    e.target.classList.toggle('bg-indigo-100');
+                    e.target.classList.toggle('bg-gray-200');
+                    
+                    const topic = e.target.textContent;
+                    if (appState.selectedTopics.includes(topic)) {
+                        appState.selectedTopics = appState.selectedTopics.filter(t => t !== topic);
+                    } else {
+                        appState.selectedTopics.push(topic);
+                    }
+                    
+                    saveUserData();
+                }
+            });
+            
+            // Lesson type change
+            elements.lessonType.addEventListener('change', (e) => {
+                if (e.target.value === 'custom') {
+                    elements.customTopicContainer.classList.remove('hidden');
+                } else {
+                    elements.customTopicContainer.classList.add('hidden');
+                }
+            });
+            
+            // Generate lesson
+            elements.generateLessonBtn.addEventListener('click', generateLesson);
+            
+            // Save lesson
+            elements.saveLessonBtn.addEventListener('click', saveCurrentLesson);
+            
+            // New lesson
+            elements.newLessonBtn.addEventListener('click', () => {
+                elements.currentLessonContainer.classList.add('hidden');
+                elements.exercisesContainer.classList.add('hidden');
+            });
+        }
+
+        function getLevelName(level) {
+            const levels = {
+                'beginner': 'Начинающий',
+                'intermediate': 'Средний',
+                'advanced': 'Продвинутый'
+            };
+            return levels[level];
+        }
+
+        function addNewTopic() {
+            const topic = elements.newTopic.value.trim();
+            if (topic && !elements.topicsContainer.querySelector(`.topic-btn:contains('${topic}')`)) {
+                const btn = document.createElement('button');
+                btn.className = 'topic-btn px-3 py-1 bg-gray-200 hover:bg-indigo-100 rounded-full text-sm';
+                btn.textContent = topic;
+                elements.topicsContainer.appendChild(btn);
+                elements.newTopic.value = '';
+                
+                // Add to selected topics if needed
+                if (!appState.selectedTopics.includes(topic)) {
+                    appState.selectedTopics.push(topic);
+                    saveUserData();
+                }
+            }
+        }
+
+        function updateUI() {
+            // Set initial level button state
+            elements.levelBtns.forEach(btn => {
+                if (btn.dataset.level === appState.userLevel) {
+                    btn.classList.add('bg-indigo-100', 'text-indigo-800');
+                    btn.querySelector('i').classList.remove('hidden');
+                }
+            });
+            
+            // Update user info
+            elements.username.textContent = appState.userName;
+            elements.studyDay.textContent = appState.studyDay;
+            elements.progressPercent.textContent = `${appState.progress}%`;
+            elements.progressBar.style.width = `${appState.progress}%`;
+            elements.wordsLearned.textContent = appState.wordsLearned;
+            elements.lessonsCompleted.textContent = appState.lessonsCompleted;
+            elements.userLevel.innerHTML = `Уровень: ${getLevelName(appState.userLevel)} <i class="fas fa-user-graduate"></i>`;
+            
+            // Update selected topics
+            document.querySelectorAll('.topic-btn').forEach(btn => {
+                if (appState.selectedTopics.includes(btn.textContent)) {
+                    btn.classList.add('bg-indigo-100');
+                    btn.classList.remove('bg-gray-200');
+                }
+            });
+        }
+
+        async function generateLesson() {
+            const lessonType = elements.lessonType.value;
+            let lessonTopic = '';
+            
+            if (lessonType === 'custom') {
+                lessonTopic = elements.customTopic.value.trim();
+                if (!lessonTopic) {
+                    alert('Пожалуйста, введите тему для урока');
+                    return;
+                }
+            }
+            
+            // Show loading state
+            elements.loadingContainer.classList.remove('hidden');
+            elements.currentLessonContainer.classList.add('hidden');
+            elements.exercisesContainer.classList.add('hidden');
+            
+            try {
+                // Generate lesson content
+                const lessonTitle = lessonType === 'custom' ? 
+                    `Урок: ${lessonTopic}` : 
+                    `Урок по ${getLessonTypeName(lessonType)}`;
+                
+                elements.lessonTitle.textContent = lessonTitle;
+                elements.loadingMessage.textContent = `Подбираем материалы по теме: ${lessonTitle}`;
+                
+                const prompt = createLessonPrompt(lessonType, lessonTopic);
+                const lessonContent = await generateWithAI(prompt);
+                
+                // Generate exercises
+                elements.loadingMessage.textContent = 'Создаем практические задания...';
+                const exercisesPrompt = createExercisesPrompt(lessonContent, lessonType);
+                const exercisesContent = await generateWithAI(exercisesPrompt);
+                
+                // Display results
+                elements.lessonContent.innerHTML = marked.parse(lessonContent);
+                elements.exercisesContent.innerHTML = marked.parse(exercisesContent);
+                
+                elements.loadingContainer.classList.add('hidden');
+                elements.currentLessonContainer.classList.remove('hidden');
+                elements.exercisesContainer.classList.remove('hidden');
+                
+                // Scroll to top
+                window.scrollTo({
+                    top: elements.currentLessonContainer.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+                
+            } catch (error) {
+                console.error('Error generating lesson:', error);
+                elements.loadingContainer.classList.add('hidden');
+                alert('Произошла ошибка при генерации урока. Пожалуйста, попробуйте снова.');
+            }
+        }
+
+        function getLessonTypeName(type) {
+            const types = {
+                'grammar': 'грамматике',
+                'vocabulary': 'словарному запасу',
+                'conversation': 'разговорной практике',
+                'listening': 'аудированию',
+                'writing': 'письму'
+            };
+            return types[type] || type;
+        }
+
+        function createLessonPrompt(lessonType, customTopic) {
+            let prompt = '';
+            const levelName = getLevelName(appState.userLevel);
+            
+            if (lessonType === 'custom') {
+                prompt = `Создай урок английского языка на тему "${customTopic}" для ${levelName} уровня. `;
+            } else {
+                prompt = `Создай урок английского языка по ${lessonType} для ${levelName} уровня. `;
+            }
+            
+            prompt += `Урок должен состоять из теории, примеров и практических рекомендаций. `;
+            
+            if (appState.selectedTopics.length > 0) {
+                prompt += `Используй примеры из следующих тем интересов: ${appState.selectedTopics.join(', ')}. `;
+            }
+            
+            prompt += `Дай развернутое объяснение с четкой структурой: введение, основная часть с примерами, вывод. `;
+            prompt += `Используй markdown форматирование для заголовков (##), списков (-) и выделения важного (**). `;
+            prompt += `Ответ пришли на английском языке, но адаптированный для русскоязычного студента (используй русский для пояснений сложных моментов).`;
+            
+            return prompt;
+        }
+
+        function createExercisesPrompt(lessonContent, lessonType) {
+            let prompt = `На основе этого урока английского языка:\n\n${lessonContent}\n\n`;
+            prompt += `Создай 3-5 практических упражнений для закрепления материала. `;
+            
+            if (lessonType === 'grammar') {
+                prompt += `Создай упражнения на использование грамматической конструкции (заполнение пропусков, исправление ошибок, преобразование предложений). `;
+            } else if (lessonType === 'vocabulary') {
+                prompt += `Создай упражнения на запоминание слов (соответствия, кроссворд, составление предложений с новыми словами). `;
+            } else if (lessonType === 'conversation') {
+                prompt += `Создай диалоговые ситуации и вопросы для обсуждения. `;
+            } else if (lessonType === 'listening') {
+                prompt += `Придумай задания на восприятие на слух (вопросы к предполагаемому аудио, заполнение пропусков в тексте). `;
+            } else if (lessonType === 'writing') {
+                prompt += `Придумай письменные задания (написание эссе, письма, составление текста). `;
+            }
+            
+            prompt += `Дай четкие инструкции к каждому упражнению. `;
+            prompt += `Используй markdown форматирование. `;
+            prompt += `Не забудь добавить ответы/ключи в конце.`;
+            
+            return prompt;
+        }
+
+        async function generateWithAI(prompt) {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        function saveCurrentLesson() {
+            const lessonTitle = elements.lessonTitle.textContent;
+            const lessonContent = elements.lessonContent.innerHTML;
+            const exercisesContent = elements.exercisesContent.innerHTML;
+            
+            if (!lessonTitle || !lessonContent) {
+                alert('Нечего сохранять, урок пустой');
+                return;
+            }
+            
+            // Create lesson object
+            const lesson = {
+                title: lessonTitle,
+                content: lessonContent,
+                exercises: exercisesContent,
+                date: new Date().toLocaleDateString(),
+                type: elements.lessonType.value
+            };
+            
+            // Get existing lessons
+            let previousLessons = JSON.parse(localStorage.getItem('aiEnglishTutorLessons')) || [];
+            
+            // Add new lesson
+            previousLessons.unshift(lesson);
+            
+            // Save to localStorage
+            localStorage.setItem('aiEnglishTutorLessons', JSON.stringify(previousLessons));
+            
+            // Update stats
+            appState.lessonsCompleted += 1;
+            appState.wordsLearned += estimateWordsLearned(lessonContent);
+            appState.progress = Math.min(100, appState.progress + 5);
+            appState.studyDay += 1;
+            
+            // Save state and update UI
+            saveUserData();
+            updateUI();
+            
+            // Update previous lessons display
+            renderPreviousLessons(previousLessons);
+            
+            // Show confirmation
+            showConfirmation('Урок успешно сохранен!');
+        }
+
+        function estimateWordsLearned(content) {
+            // Simple estimation - count bolded words which often indicate important vocabulary
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const boldWords = tempDiv.querySelectorAll('strong, b');
+            return boldWords.length;
+        }
+
+        function renderPreviousLessons(lessons) {
+            if (lessons.length === 0) {
+                elements.previousLessons.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-book-open text-4xl mb-2"></i>
+                        <p>Здесь будут появляться ваши пройденные уроки</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.previousLessons.innerHTML = '';
+            
+            lessons.slice(0, 5).forEach(lesson => {
+                const lessonElement = document.createElement('div');
+                lessonElement.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-indigo-300 cursor-pointer transition duration-200';
+                lessonElement.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-medium">${lesson.title}</h3>
+                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${lesson.date}</span>
+                    </div>
+                    <div class="flex items-center mt-2 text-sm text-gray-500">
+                        <span class="bg-${getTypeColor(lesson.type)}-100 text-${getTypeColor(lesson.type)}-800 px-2 py-1 rounded text-xs mr-2">${getTypeName(lesson.type)}</span>
+                        <span><i class="fas fa-word mr-1"></i> ~${estimateWordsLearned(lesson.content)} новых слов</span>
+                    </div>
+                `;
+                
+                lessonElement.addEventListener('click', () => {
+                    openPreviousLesson(lesson);
+                });
+                
+                elements.previousLessons.appendChild(lessonElement);
+            });
+            
+            if (lessons.length > 5) {
+                const showMore = document.createElement('button');
+                showMore.className = 'w-full mt-4 py-2 text-indigo-600 font-medium hover:underline';
+                showMore.innerHTML = 'Показать все уроки <i class="fas fa-chevron-down ml-1"></i>';
+                showMore.addEventListener('click', () => {
+                    alert('В полной версии приложения будет доступен полный архив уроков');
+                });
+                elements.previousLessons.appendChild(showMore);
+            }
+        }
+
+        function getTypeName(type) {
+            const types = {
+                'grammar': 'Грамматика',
+                'vocabulary': 'Словарь',
+                'conversation': 'Разговор',
+                'listening': 'Аудирование',
+                'writing': 'Письмо',
+                'custom': 'Произвольная'
+            };
+            return types[type] || type;
+        }
+
+        function getTypeColor(type) {
+            const colors = {
+                'grammar': 'purple',
+                'vocabulary': 'blue',
+                'conversation': 'green',
+                'listening': 'yellow',
+                'writing': 'indigo',
+                'custom': 'gray'
+            };
+            return colors[type] || 'gray';
+        }
+
+        function openPreviousLesson(lesson) {
+            elements.lessonTitle.textContent = lesson.title;
+            elements.lessonContent.innerHTML = lesson.content;
+            elements.exercisesContent.innerHTML = lesson.exercises || '<p>Практические задания отсутствуют</p>';
+            
+            elements.currentLessonContainer.classList.remove('hidden');
+            elements.exercisesContainer.classList.remove('hidden');
+            
+            // Scroll to top
+            window.scrollTo({
+                top: elements.currentLessonContainer.offsetTop - 20,
+                behavior: 'smooth'
+            });
+        }
+
+        function showConfirmation(message) {
+            const confirmation = document.createElement('div');
+            confirmation.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2';
+            confirmation.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(confirmation);
+            
+            setTimeout(() => {
+                confirmation.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => {
+                    confirmation.remove();
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
