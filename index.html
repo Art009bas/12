@@ -7,7 +7,7 @@
     <script src="tailwind.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
+        <style>
         .lesson-container {
             transition: all 0.3s ease;
         }
@@ -33,6 +33,42 @@
         @keyframes blink {
             from, to { border-color: transparent }
             50% { border-color: #3b82f6; }
+        }
+        .exercise-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1.5rem;
+        }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            background-color: white;
+            transition: all 0.2s;
+        }
+        .option-btn:hover {
+            background-color: #f3f4f6;
+        }
+        .option-btn.selected {
+            background-color: #e0e7ff;
+            border-color: #818cf8;
+        }
+        .option-btn.correct {
+            background-color: #d1fae5;
+            border-color: #10b981;
+        }
+        .option-btn.incorrect {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+        .fill-blank-input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            min-width: 200px;
         }
     </style>
 </head>
@@ -183,7 +219,34 @@
                             <i class="fas fa-dumbbell text-indigo-600 mr-2"></i>
                             Практика
                         </h3>
-                        <div id="exercisesContent"></div>
+                        <div id="exercisesContent" class="space-y-6"></div>
+                        <div id="resultsContainer" class="hidden mt-6 p-6 bg-gray-50 rounded-lg">
+                            <h4 class="font-bold text-xl mb-4 text-center" id="resultTitle"></h4>
+                            <div class="flex justify-center items-center mb-4">
+                                <div class="relative w-24 h-24">
+                                    <svg class="w-full h-full" viewBox="0 0 36 36">
+                                        <path d="M18 2.0845
+                                                a 15.9155 15.9155 0 0 1 0 31.831
+                                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                fill="none" stroke="#eee" stroke-width="3"/>
+                                        <path id="scoreCircle" d="M18 2.0845
+                                                a 15.9155 15.9155 0 0 1 0 31.831
+                                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                fill="none" stroke="#4f46e5" stroke-width="3" stroke-dasharray="0, 100"/>
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <span class="text-2xl font-bold" id="scorePercent">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-center" id="resultFeedback"></p>
+                            <button id="retryBtn" class="mt-4 w-full bg-indigo-600 text-white py-2 rounded-lg hidden">
+                                Попробовать снова
+                            </button>
+                        </div>
+                        <button id="checkAnswersBtn" class="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 hidden">
+                            Проверить ответы
+                        </button>
                     </div>
                 </div>
 
@@ -445,13 +508,15 @@
                 const lessonContent = await generateWithAI(prompt);
                 
                 // Generate exercises
-                elements.loadingMessage.textContent = 'Создаем практические задания...';
+                elements.loadingMessage.textContent = 'Создаем интерактивные задания...';
                 const exercisesPrompt = createExercisesPrompt(lessonContent, lessonType);
-                const exercisesContent = await generateWithAI(exercisesPrompt);
+                const exercisesJSON = await generateExercisesJSON(exercisesPrompt);
                 
                 // Display results
                 elements.lessonContent.innerHTML = marked.parse(lessonContent);
-                elements.exercisesContent.innerHTML = marked.parse(exercisesContent);
+                renderInteractiveExercises(exercisesJSON);
+                
+                elements.checkAnswersBtn.classList.remove('hidden');
                 
                 elements.loadingContainer.classList.add('hidden');
                 elements.currentLessonContainer.classList.remove('hidden');
@@ -506,25 +571,204 @@
 
         function createExercisesPrompt(lessonContent, lessonType) {
             let prompt = `На основе этого урока английского языка:\n\n${lessonContent}\n\n`;
-            prompt += `Создай 3-5 практических упражнений для закрепления материала. `;
-            
+            prompt += `Создай 3-5 интерактивных упражнений для практики в формате JSON. Структура: {
+                "exercises": [
+                    {
+                        "type": "multiple_choice" or "fill_blank",
+                        "question": "текст вопроса",
+                        "options": ["вариант1", "вариант2"] (только для multiple_choice),
+                        "correct_answer": "правильный ответ",
+                        "explanation": "пояснение к ответу"
+                    }
+                ]
+            }`;
+
             if (lessonType === 'grammar') {
-                prompt += `Создай упражнения на использование грамматической конструкции (заполнение пропусков, исправление ошибок, преобразование предложений). `;
+                prompt += `Создай упражнения на грамматику: multiple_choice и fill_blank. `;
             } else if (lessonType === 'vocabulary') {
-                prompt += `Создай упражнения на запоминание слов (соответствия, кроссворд, составление предложений с новыми словами). `;
-            } else if (lessonType === 'conversation') {
-                prompt += `Создай диалоговые ситуации и вопросы для обсуждения. `;
-            } else if (lessonType === 'listening') {
-                prompt += `Придумай задания на восприятие на слух (вопросы к предполагаемому аудио, заполнение пропусков в тексте). `;
-            } else if (lessonType === 'writing') {
-                prompt += `Придумай письменные задания (написание эссе, письма, составление текста). `;
+                prompt += `Создай exercises для запоминания слов (multiple_choice на соответствия). `;
             }
-            
-            prompt += `Дай четкие инструкции к каждому упражнению. `;
-            prompt += `Используй markdown форматирование. `;
-            prompt += `Не забудь добавить ответы/ключи в конце.`;
-            
+
+            prompt += `Используй русский для вопросов и английский для примеров. `;
+            prompt += `Ответ пришли исключительно в виде валидного JSON без дополнительного текста.`;
+
             return prompt;
+        }
+
+        async function generateExercisesJSON(prompt) {
+            const response = await generateWithAI(prompt);
+            try {
+                return JSON.parse(response);
+            } catch (e) {
+                console.error('Error parsing exercises JSON:', e);
+                return {
+                    exercises: []
+                };
+            }
+        }
+
+        function renderInteractiveExercises(exercisesData) {
+            elements.exercisesContent.innerHTML = '';
+            
+            exercisesData.exercises.forEach((exercise, index) => {
+                const exerciseDiv = document.createElement('div');
+                exerciseDiv.className = 'exercise-item';
+                exerciseDiv.dataset.correctAnswer = exercise.correct_answer;
+                exerciseDiv.dataset.explanation = exercise.explanation;
+
+                let exerciseHTML = `
+                    <h4 class="font-medium mb-3">${index + 1}. ${exercise.question}</h4>
+                    <div class="space-y-2">`;
+
+                if (exercise.type === 'multiple_choice') {
+                    exercise.options.forEach((option, i) => {
+                        exerciseHTML += `
+                            <button class="option-btn" data-option="${i}">
+                                ${String.fromCharCode(65 + i)}. ${option}
+                            </button>`;
+                    });
+                } else if (exercise.type === 'fill_blank') {
+                    exerciseHTML += `
+                        <input type="text" class="fill-blank-input" placeholder="Введите ответ">
+                        <button class="mt-2 ml-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-lg confirm-answer hidden">
+                            Подтвердить
+                        </button>`;
+                }
+
+                exerciseHTML += `</div>`;
+                exerciseDiv.innerHTML = exerciseHTML;
+                elements.exercisesContent.appendChild(exerciseDiv);
+            });
+
+            // Add event listeners
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.parentNode.querySelectorAll('.option-btn').forEach(b => {
+                        b.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                });
+            });
+
+            document.querySelectorAll('.fill-blank-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    this.nextElementSibling.classList.remove('hidden');
+                });
+            });
+
+            document.querySelectorAll('.confirm-answer').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const exerciseDiv = this.closest('.exercise-item');
+                    const userAnswer = this.previousElementSibling.value.trim();
+                    checkFillBlankAnswer(exerciseDiv, userAnswer);
+                    this.classList.add('hidden');
+                });
+            });
+
+            // Add event listener for check answers button
+            elements.checkAnswersBtn.addEventListener('click', checkAllAnswers);
+        }
+
+        function checkAllAnswers() {
+            let correctCount = 0;
+            const totalExercises = document.querySelectorAll('.exercise-item').length;
+
+            document.querySelectorAll('.exercise-item').forEach(exercise => {
+                const selectedOption = exercise.querySelector('.option-btn.selected');
+                const correctAnswer = exercise.dataset.correctAnswer;
+                const explanation = exercise.dataset.explanation;
+
+                if (selectedOption) {
+                    const isCorrect = selectedOption.textContent.includes(correctAnswer);
+                    if (isCorrect) correctCount++;
+                    
+                    exercise.querySelectorAll('.option-btn').forEach(btn => {
+                        if (btn.textContent.includes(correctAnswer)) {
+                            btn.classList.add('correct');
+                        } else {
+                            btn.classList.add('incorrect');
+                        }
+                    });
+                    
+                    addExplanation(exercise, isCorrect, explanation);
+                }
+                // Fill blank answers are checked individually
+                else if (exercise.querySelector('.fill-blank-input')) {
+                    if (exercise.classList.contains('checked')) {
+                        if (exercise.classList.contains('correct')) {
+                            correctCount++;
+                        }
+                    }
+                }
+            });
+
+            showResults(correctCount, totalExercises);
+            elements.checkAnswersBtn.classList.add('hidden');
+            document.getElementById('retryBtn').classList.remove('hidden');
+        }
+
+        function checkFillBlankAnswer(exerciseDiv, userAnswer) {
+            const correctAnswer = exerciseDiv.dataset.correctAnswer.toLowerCase();
+            const isCorrect = userAnswer.toLowerCase() === correctAnswer;
+            const explanation = exerciseDiv.dataset.explanation;
+
+            exerciseDiv.classList.add('checked');
+            if (isCorrect) {
+                exerciseDiv.classList.add('correct');
+            } else {
+                exerciseDiv.classList.add('incorrect');
+            }
+
+            addExplanation(exerciseDiv, isCorrect, explanation);
+        }
+
+        function addExplanation(exercise, isCorrect, text) {
+            if (!exercise.querySelector('.explanation')) {
+                const explanationDiv = document.createElement('div');
+                explanationDiv.className = `mt-3 p-3 rounded-lg ${isCorrect ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`;
+                explanationDiv.innerHTML = `
+                    <p><strong>${isCorrect ? 'Правильно!' : 'Неправильно.'}</strong> ${text}</p>
+                `;
+                explanationDiv.classList.add('explanation');
+                exercise.appendChild(explanationDiv);
+            }
+        }
+
+        function showResults(correctCount, totalExercises) {
+            const score = Math.round((correctCount / totalExercises) * 100);
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            document.getElementById('scorePercent').textContent = `${score}%`;
+            document.getElementById('resultTitle').textContent = score >= 70 ? 
+                'Отличный результат!' : 'Есть над чем поработать';
+            
+            document.getElementById('resultFeedback').textContent = score >= 70 ?
+                `Вы ответили правильно на ${correctCount} из ${totalExercises} вопросов. Так держать!` :
+                `Вы ответили правильно на ${correctCount} из ${totalExercises} вопросов. Рекомендуем повторить материал.`;
+            
+            // Animate score circle
+            const circle = document.getElementById('scoreCircle');
+            const circumference = 2 * Math.PI * 15.9155;
+            const offset = circumference - (score / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+            
+            resultsContainer.classList.remove('hidden');
+            
+            // Add retry button handler
+            document.getElementById('retryBtn').addEventListener('click', () => {
+                document.querySelectorAll('.exercise-item').forEach(exercise => {
+                    exercise.classList.remove('checked', 'correct', 'incorrect');
+                    exercise.querySelectorAll('.option-btn').forEach(btn => {
+                        btn.classList.remove('selected', 'correct', 'incorrect');
+                    });
+                    const explanation = exercise.querySelector('.explanation');
+                    if (explanation) explanation.remove();
+                });
+                resultsContainer.classList.add('hidden');
+                elements.checkAnswersBtn.classList.remove('hidden');
+                document.getElementById('retryBtn').classList.add('hidden');
+            });
         }
 
         async function generateWithAI(prompt) {
