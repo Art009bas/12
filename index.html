@@ -571,25 +571,17 @@
 
         function createExercisesPrompt(lessonContent, lessonType) {
             let prompt = `На основе этого урока английского языка:\n\n${lessonContent}\n\n`;
-            prompt += `Создай 3-5 интерактивных упражнений для практики. Возвращай строго в таком JSON формате:
-{
-  "exercises": [
-    {
-      "type": "multiple_choice",
-      "question": "What is the capital of France?",
-      "options": ["London", "Paris", "Berlin", "Madrid"],
-      "correct_answer": "Paris",
-      "explanation": "Paris is the capital of France."
-    },
-    {
-      "type": "fill_blank",
-      "question": "Complete the sentence: The capital of Germany is ___.",
-      "correct_answer": "Berlin",
-      "explanation": "Berlin is the capital of Germany."
-    }
-  ]
-}
-Только JSON, без дополнительного текста и комментариев!`;
+            prompt += `Создай 3-5 интерактивных упражнений для практики в формате JSON. Структура: {
+                "exercises": [
+                    {
+                        "type": "multiple_choice" or "fill_blank",
+                        "question": "текст вопроса",
+                        "options": ["вариант1", "вариант2"] (только для multiple_choice),
+                        "correct_answer": "правильный ответ",
+                        "explanation": "пояснение к ответу"
+                    }
+                ]
+            }`;
 
             if (lessonType === 'grammar') {
                 prompt += `Создай упражнения на грамматику: multiple_choice и fill_blank. `;
@@ -606,37 +598,17 @@
         async function generateExercisesJSON(prompt) {
             const response = await generateWithAI(prompt);
             try {
-                // Try to extract JSON from response
-                const jsonStart = response.indexOf('{');
-                const jsonEnd = response.lastIndexOf('}') + 1;
-                const jsonString = response.slice(jsonStart, jsonEnd);
-                
-                return JSON.parse(jsonString);
+                return JSON.parse(response);
             } catch (e) {
-                console.error('Error parsing exercises JSON:', e, response);
-                // Return default exercises if parsing fails
+                console.error('Error parsing exercises JSON:', e);
                 return {
-                    exercises: [
-                        {
-                            type: "multiple_choice",
-                            question: "What is the capital of France?",
-                            options: ["London", "Paris", "Berlin", "Madrid"],
-                            correct_answer: "Paris",
-                            explanation: "Paris is the capital of France."
-                        }
-                    ]
+                    exercises: []
                 };
             }
         }
 
         function renderInteractiveExercises(exercisesData) {
             elements.exercisesContent.innerHTML = '';
-            
-            // Check if we have valid exercises data
-            if (!exercisesData || !exercisesData.exercises || !Array.isArray(exercisesData.exercises)) {
-                console.error('Invalid exercises data:', exercisesData);
-                exercisesData = { exercises: [] };
-            }
             
             exercisesData.exercises.forEach((exercise, index) => {
                 const exerciseDiv = document.createElement('div');
